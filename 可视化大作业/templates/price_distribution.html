@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}价格分布{% endblock %}
+
+{% block page_title %}数据分布型图表 - 价格分布{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="priceChart" class="chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 获取数据
+        const data = {{ data|safe }};
+        
+        // 准备数据
+        // 按照价格区间排序
+        data.sort((a, b) => {
+            const priceA = parseInt(a.price.split('-')[0]);
+            const priceB = parseInt(b.price.split('-')[0]);
+            return priceA - priceB;
+        });
+        
+        const prices = data.map(item => item.price);
+        const counts = data.map(item => item.consume_count);
+        
+        // 初始化图表
+        const priceChart = echarts.init(document.getElementById('priceChart'));
+        
+        // 配置项
+        const option = {
+            title: {
+                text: '民宿价格分布与消费次数',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            xAxis: {
+                type: 'category',
+                data: prices,
+                axisLabel: {
+                    interval: 0,
+                    rotate: 30
+                },
+                name: '价格区间'
+            },
+            yAxis: {
+                type: 'value',
+                name: '消费次数'
+            },
+            series: [
+                {
+                    name: '消费次数',
+                    type: 'bar',
+                    data: counts,
+                    itemStyle: {
+                        color: function(params) {
+                            // 颜色渐变
+                            const colorList = [
+                                '#5470c6', '#91cc75', '#fac858', '#ee6666',
+                                '#73c0de', '#3ba272', '#fc8452', '#9a60b4',
+                                '#ea7ccc', '#c23531'
+                            ];
+                            return colorList[params.dataIndex % colorList.length];
+                        }
+                    },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: function(params) {
+                            // 格式化数字，添加千位分隔符
+                            return params.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                        }
+                    }
+                }
+            ],
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                containLabel: true
+            },
+            // 添加数据缩放功能
+            dataZoom: [
+                {
+                    type: 'slider',
+                    show: true,
+                    xAxisIndex: [0],
+                    start: 0,
+                    end: 100
+                }
+            ]
+        };
+        
+        // 使用配置项显示图表
+        priceChart.setOption(option);
+        
+        // 响应窗口大小变化
+        window.addEventListener('resize', function() {
+            priceChart.resize();
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}房间类型占比{% endblock %}
+
+{% block page_title %}局部整体型图表 - 房间类型占比{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="pieChart" class="chart"></div>
+        </div>
+    </div>
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="roseChart" class="chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 获取数据
+        const data = {{ data|safe }};
+        
+        // 准备数据
+        const roomTypes = data.map(item => item.room_type);
+        const counts = data.map(item => item.count);
+        const pieData = data.map(item => ({
+            name: item.room_type,
+            value: item.count
+        }));
+        
+        // 初始化饼图
+        const pieChart = echarts.init(document.getElementById('pieChart'));
+        
+        // 饼图配置
+        const pieOption = {
+            title: {
+                text: '民宿房间类型占比',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'horizontal',
+                bottom: '0%',
+                data: roomTypes
+            },
+            series: [
+                {
+                    name: '房间类型',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{b}: {d}%'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '18',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: true
+                    },
+                    data: pieData
+                }
+            ]
+        };
+        
+        // 使用配置项显示饼图
+        pieChart.setOption(pieOption);
+        
+        // 初始化南丁格尔玫瑰图
+        const roseChart = echarts.init(document.getElementById('roseChart'));
+        
+        // 玫瑰图配置
+        const roseOption = {
+            title: {
+                text: '民宿房间类型分布(南丁格尔玫瑰图)',
+                left: 'center',
+                textStyle: {
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    color: '#34495e'
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: 'rgba(50,50,50,0.9)',
+                borderColor: '#eee',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#fff',
+                    fontSize: 14
+                },
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                right: '5%',
+                top: 'center',
+                textStyle: {
+                    fontSize: 14,
+                    color: '#34495e'
+                },
+                data: roomTypes
+            },
+            series: [
+                {
+                    name: '房间类型',
+                    type: 'pie',
+                    radius: ['30%', '75%'],
+                    center: ['40%', '50%'],
+                    roseType: 'area',
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        shadowBlur: 20,
+                        shadowColor: 'rgba(0, 0, 0, 0.15)'
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{b}\n{c} ({d}%)',
+                        fontSize: 14,
+                        color: '#2c3e50',
+                        fontWeight: 'bold',
+                        shadowColor: '#fff',
+                        shadowBlur: 2
+                    },
+                    labelLine: {
+                        length: 20,
+                        length2: 20,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#aaa'
+                        }
+                    },
+                    data: pieData,
+                    color: [
+                        '#ff7675', '#74b9ff', '#55efc4', '#ffeaa7', '#fd79a8',
+                        '#a29bfe', '#00b894', '#fdcb6e', '#636e72', '#e17055'
+                    ],
+                    animationType: 'scale',
+                    animationEasing: 'elasticOut',
+                    animationDelay: function (idx) {
+                        return Math.random() * 200;
+                    }
+                }
+            ]
+        };
+        
+        // 使用配置项显示玫瑰图
+        roseChart.setOption(roseOption);
+        
+        // 响应窗口大小变化
+        window.addEventListener('resize', function() {
+            pieChart.resize();
+            roseChart.resize();
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}地理空间分布{% endblock %}
+
+{% block page_title %}地理空间型图表 - 区域分布地图{% endblock %}
+
+{% block head_extra %}
+<script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=EERz7vzrtqrdBdwmp6MkAtSMAUlvasgx"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.0/extension/bmap.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="mapChart" class="chart" style="height: 600px;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 获取数据
+        const data = {{ data|safe }};
+        
+        // 初始化地图
+        const mapChart = echarts.init(document.getElementById('mapChart'));
+        
+        // 默认option
+        let option = {
+            title: {
+                text: '广州各区域民宿分布',
+                left: 'center',
+                textStyle: {
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    color: '#34495e'
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: 'rgba(50,50,50,0.9)',
+                borderColor: '#eee',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#fff',
+                    fontSize: 14
+                },
+                formatter: function(params) {
+                    if(params.value && params.value.length === 3) {
+                        return params.name + ': ' + params.value[2] + '家民宿';
+                    } else if(params.value && params.value.length === 1) {
+                        return params.name + ': ' + params.value[0] + '家民宿';
+                    } else {
+                        return params.name;
+                    }
+                }
+            },
+            visualMap: {
+                min: 0,
+                max: Math.max(...data.map(item => item.value)),
+                calculable: true,
+                inRange: {
+                    color: ['#b4e0fa', '#3498db', '#2c3e50']
+                },
+                textStyle: {
+                    color: '#34495e'
+                },
+                left: 'left',
+                bottom: '5%'
+            },
+            geo: {
+                map: '广州',
+                roam: true,
+                zoom: 1.1,
+                label: {
+                    show: true,
+                    color: '#34495e',
+                    fontSize: 13
+                },
+                itemStyle: {
+                    areaColor: '#eaf6fb',
+                    borderColor: '#3498db',
+                    borderWidth: 1.5,
+                    shadowColor: 'rgba(52,152,219,0.2)',
+                    shadowBlur: 20
+                },
+                emphasis: {
+                    itemStyle: {
+                        areaColor: '#b2bec3',
+                        shadowColor: 'rgba(52,152,219,0.3)',
+                        shadowBlur: 30
+                    },
+                    label: {
+                        color: '#2d3436',
+                        fontWeight: 'bold'
+                    }
+                }
+            },
+            series: [
+                {
+                    name: '民宿数量',
+                    type: 'scatter',
+                    coordinateSystem: 'geo',
+                    data: data.map(function(item) {
+                        return {
+                            name: item.name,
+                            value: [item.lng, item.lat, item.value],
+                        };
+                    }),
+                    symbolSize: function(val) {
+                        return Math.sqrt(val[2]) * 3.5;
+                    },
+                    encode: {
+                        value: 2
+                    },
+                    label: {
+                        formatter: '{b}',
+                        position: 'right',
+                        show: false
+                    },
+                    emphasis: {
+                        label: {
+                            show: true
+                        }
+                    },
+                    itemStyle: {
+                        color: '#e17055',
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(241, 196, 15, 0.3)'
+                    }
+                },
+                {
+                    name: '热力图',
+                    type: 'heatmap',
+                    coordinateSystem: 'geo',
+                    data: data.map(function(item) {
+                        return [item.lng, item.lat, item.value];
+                    }),
+                    pointSize: 12,
+                    blurSize: 18
+                }
+            ]
+        };
+        
+        // 先设置中国地图，防止初次无地图
+        mapChart.showLoading({text: '地图加载中...'});
+        $.get('https://geo.datav.aliyun.com/areas_v3/bound/440100_full.json')
+            .done(function(geoJson) {
+                echarts.registerMap('广州', geoJson);
+                mapChart.setOption(option);
+                mapChart.hideLoading();
+            })
+            .fail(function() {
+                mapChart.hideLoading();
+                document.getElementById('mapChart').innerHTML = '<div class="alert alert-danger">广州地图数据加载失败，请检查网络或稍后重试。</div>';
+            });
+        
+        // 响应窗口大小变化
+        window.addEventListener('resize', function() {
+            mapChart.resize();
+        });
+    });
+</script>
+{% endblock %} 

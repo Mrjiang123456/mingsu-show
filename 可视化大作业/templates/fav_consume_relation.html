@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}收藏消费关系{% endblock %}
+
+{% block page_title %}数据关系型图表 - 收藏消费关系{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="scatterChart" class="chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 获取数据
+        const data = {{ data|safe }};
+        
+        // 准备数据
+        const scatterData = data.map(item => [item.fav_count, item.consume_count]);
+        
+        // 初始化图表
+        const scatterChart = echarts.init(document.getElementById('scatterChart'));
+        
+        // 配置项
+        const option = {
+            title: {
+                text: '民宿收藏数与消费次数关系分析',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: function(params) {
+                    return '收藏数: ' + params.value[0] + '<br/>消费次数: ' + params.value[1];
+                }
+            },
+            xAxis: {
+                type: 'value',
+                name: '收藏数',
+                nameLocation: 'middle',
+                nameGap: 30
+            },
+            yAxis: {
+                type: 'value',
+                name: '消费次数',
+                nameLocation: 'middle',
+                nameGap: 30
+            },
+            series: [
+                {
+                    name: '收藏-消费关系',
+                    type: 'scatter',
+                    data: scatterData,
+                    symbolSize: 8,
+                    itemStyle: {
+                        color: '#5470c6'
+                    }
+                }
+            ],
+            grid: {
+                left: '5%',
+                right: '5%',
+                bottom: '10%',
+                top: '15%',
+                containLabel: true
+            },
+            // 添加回归线
+            visualMap: {
+                show: false,
+                dimension: 0,
+                min: 0,
+                max: 6000,
+                inRange: {
+                    color: ['#5470c6', '#91cc75', '#fac858', '#ee6666']
+                }
+            },
+            // 添加趋势线
+            graphic: echarts.util.map([0, 1], function (value, index) {
+                return {
+                    type: 'group',
+                    invisible: true,
+                    children: [{
+                        type: 'circle',
+                        shape: { r: 5 },
+                        style: {
+                            fill: 'red'
+                        }
+                    }]
+                };
+            })
+        };
+        
+        // 使用配置项显示图表
+        scatterChart.setOption(option);
+        
+        // 计算回归线
+        if (data.length > 0) {
+            const xData = data.map(item => item.fav_count);
+            const yData = data.map(item => item.consume_count);
+            
+            // 计算线性回归
+            const xMean = xData.reduce((a, b) => a + b, 0) / xData.length;
+            const yMean = yData.reduce((a, b) => a + b, 0) / yData.length;
+            
+            let numerator = 0;
+            let denominator = 0;
+            
+            for (let i = 0; i < xData.length; i++) {
+                numerator += (xData[i] - xMean) * (yData[i] - yMean);
+                denominator += Math.pow(xData[i] - xMean, 2);
+            }
+            
+            const slope = numerator / denominator;
+            const intercept = yMean - slope * xMean;
+            
+            // 添加回归线
+            const minX = Math.min(...xData);
+            const maxX = Math.max(...xData);
+            
+            const lineData = [
+                [minX, minX * slope + intercept],
+                [maxX, maxX * slope + intercept]
+            ];
+            
+            scatterChart.setOption({
+                series: [
+                    {},  // 保持原有的散点图
+                    {
+                        name: '回归线',
+                        type: 'line',
+                        data: lineData,
+                        showSymbol: false,
+                        lineStyle: {
+                            color: '#ee6666',
+                            width: 2
+                        }
+                    }
+                ]
+            });
+        }
+        
+        // 响应窗口大小变化
+        window.addEventListener('resize', function() {
+            scatterChart.resize();
+        });
+    });
+</script>
+{% endblock %} 

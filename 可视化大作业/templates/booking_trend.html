@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}预订时间趋势{% endblock %}
+
+{% block page_title %}时间系列型图表 - 预订时间趋势{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="trendChart" class="chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 获取数据
+        const data = {{ data|safe }};
+        
+        // 准备数据
+        const dates = data.map(item => item.date);
+        const counts = data.map(item => item.count);
+        
+        // 初始化图表
+        const trendChart = echarts.init(document.getElementById('trendChart'));
+        
+        // 配置项
+        const option = {
+            title: {
+                text: '民宿预订时间趋势',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: '#6a7985'
+                    }
+                }
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: dates,
+                axisLabel: {
+                    rotate: 45
+                },
+                name: '日期'
+            },
+            yAxis: {
+                type: 'value',
+                name: '预订数量'
+            },
+            series: [
+                {
+                    name: '预订数量',
+                    type: 'line',
+                    stack: '总量',
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            {
+                                offset: 0,
+                                color: 'rgba(58,77,233,0.8)'
+                            },
+                            {
+                                offset: 1,
+                                color: 'rgba(58,77,233,0.1)'
+                            }
+                        ])
+                    },
+                    data: counts,
+                    smooth: true,
+                    symbol: 'emptyCircle',
+                    symbolSize: 5,
+                    lineStyle: {
+                        width: 2
+                    }
+                }
+            ],
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                containLabel: true
+            },
+            // 添加数据缩放功能
+            dataZoom: [
+                {
+                    type: 'slider',
+                    show: true,
+                    xAxisIndex: [0],
+                    start: 0,
+                    end: 100
+                },
+                {
+                    type: 'inside',
+                    xAxisIndex: [0],
+                    start: 0,
+                    end: 100
+                }
+            ],
+            // 添加标记线
+            markLine: {
+                data: [
+                    {type: 'average', name: '平均值'}
+                ]
+            }
+        };
+        
+        // 使用配置项显示图表
+        trendChart.setOption(option);
+        
+        // 计算移动平均线
+        if (data.length > 7) {
+            const movingAvg = [];
+            const windowSize = 7; // 7天移动平均
+            
+            for (let i = 0; i <= counts.length - windowSize; i++) {
+                let sum = 0;
+                for (let j = 0; j < windowSize; j++) {
+                    sum += counts[i + j];
+                }
+                movingAvg.push([dates[i + windowSize - 1], sum / windowSize]);
+            }
+            
+            // 添加移动平均线
+            trendChart.setOption({
+                series: [
+                    {}, // 保持原有的线图
+                    {
+                        name: '7天移动平均',
+                        type: 'line',
+                        data: movingAvg,
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: {
+                            color: '#ff9a00',
+                            width: 2,
+                            type: 'dashed'
+                        }
+                    }
+                ],
+                legend: {
+                    data: ['预订数量', '7天移动平均'],
+                    top: 30
+                }
+            });
+        }
+        
+        // 响应窗口大小变化
+        window.addEventListener('resize', function() {
+            trendChart.resize();
+        });
+    });
+</script>
+{% endblock %} 

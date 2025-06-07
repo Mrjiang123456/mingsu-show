@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}多维数据分析{% endblock %}
+
+{% block page_title %}高维数据型图表 - 多维数据分析{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.bootcdn.net/ajax/libs/echarts-gl/2.0.8/echarts-gl.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="radarChart" class="chart"></div>
+        </div>
+    </div>
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="parallelChart" class="chart"></div>
+        </div>
+    </div>
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <div id="bubbleChart" class="chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 获取数据
+        const tags = {{ tags|safe }};
+        const prices = {{ prices|safe }};
+        const rates = {{ rates|safe }};
+        
+        // 雷达图
+        const radarChart = echarts.init(document.getElementById('radarChart'));
+        
+        // 准备雷达图数据
+        const topTags = tags.sort((a, b) => b.count - a.count).slice(0, 6);
+        const radarIndicator = topTags.map(item => ({
+            name: item.tag_name,
+            max: Math.max(...topTags.map(t => t.count)) * 1.2
+        }));
+        
+        const radarData = [
+            {
+                value: topTags.map(item => item.count),
+                name: '标签分布'
+            }
+        ];
+        
+        // 雷达图配置
+        const radarOption = {
+            title: {
+                text: '民宿热门标签分布',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'item'
+            },
+            legend: {
+                data: ['标签分布'],
+                bottom: '0%'
+            },
+            radar: {
+                indicator: radarIndicator
+            },
+            series: [
+                {
+                    type: 'radar',
+                    data: radarData,
+                    areaStyle: {
+                        color: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
+                            {
+                                color: 'rgba(255, 145, 124, 0.1)',
+                                offset: 0
+                            },
+                            {
+                                color: 'rgba(255, 145, 124, 0.9)',
+                                offset: 1
+                            }
+                        ])
+                    }
+                }
+            ]
+        };
+        
+        radarChart.setOption(radarOption);
+        
+        // 平行坐标图
+        const parallelChart = echarts.init(document.getElementById('parallelChart'));
+        
+        // 准备平行坐标图数据
+        // 将价格区间转换为数值
+        const priceValues = prices.map(item => {
+            const range = item.price.split('-');
+            const minPrice = parseInt(range[0]);
+            return {
+                price: minPrice,
+                count: item.consume_count
+            };
+        });
+        
+        // 将评分和价格组合
+        const parallelData = [];
+        for (let i = 0; i < Math.min(rates.length, priceValues.length); i++) {
+            parallelData.push([
+                rates[i].rate,
+                priceValues[i].price,
+                priceValues[i].count
+            ]);
+        }
+        
+        // 平行坐标图配置
+        const parallelOption = {
+            title: {
+                text: '评分、价格与消费次数关系',
+                left: 'center'
+            },
+            parallelAxis: [
+                {
+                    dim: 0,
+                    name: '评分',
+                    min: 0,
+                    max: 5
+                },
+                {
+                    dim: 1,
+                    name: '价格',
+                    min: 0,
+                    max: 1000
+                },
+                {
+                    dim: 2,
+                    name: '消费次数',
+                    min: 0,
+                    max: Math.max(...parallelData.map(item => item[2])) * 1.2
+                }
+            ],
+            parallel: {
+                left: '5%',
+                right: '13%',
+                bottom: '10%',
+                top: '20%'
+            },
+            series: [
+                {
+                    type: 'parallel',
+                    lineStyle: {
+                        width: 2,
+                        color: '#5470c6'
+                    },
+                    data: parallelData
+                }
+            ]
+        };
+        
+        parallelChart.setOption(parallelOption);
+        
+        // 气泡图
+        const bubbleChart = echarts.init(document.getElementById('bubbleChart'));
+        
+        // 准备气泡图数据
+        const bubbleData = [];
+        for (let i = 0; i < Math.min(rates.length, priceValues.length, 20); i++) {
+            bubbleData.push([
+                priceValues[i].price,
+                rates[i].rate,
+                priceValues[i].count / 10000, // 缩小气泡大小
+                priceValues[i].price
+            ]);
+        }
+        
+        // 气泡图配置
+        const bubbleOption = {
+            title: {
+                text: '价格、评分与消费次数气泡图',
+                left: 'center'
+            },
+            tooltip: {
+                formatter: function(params) {
+                    return '价格: ' + params.value[0] + '<br/>' +
+                           '评分: ' + params.value[1] + '<br/>' +
+                           '消费次数: ' + (params.value[2] * 10000);
+                }
+            },
+            xAxis: {
+                type: 'value',
+                name: '价格',
+                nameLocation: 'middle',
+                nameGap: 30
+            },
+            yAxis: {
+                type: 'value',
+                name: '评分',
+                nameLocation: 'middle',
+                nameGap: 30
+            },
+            visualMap: {
+                show: true,
+                dimension: 3,
+                min: 0,
+                max: 1000,
+                inRange: {
+                    color: ['#5470c6', '#91cc75', '#fac858', '#ee6666']
+                },
+                orient: 'horizontal',
+                left: 'center',
+                bottom: '0%'
+            },
+            series: [
+                {
+                    name: '价格-评分-消费',
+                    type: 'scatter',
+                    symbolSize: function(data) {
+                        return data[2] * 30;
+                    },
+                    data: bubbleData
+                }
+            ],
+            grid: {
+                left: '5%',
+                right: '5%',
+                bottom: '15%',
+                top: '15%',
+                containLabel: true
+            }
+        };
+        
+        bubbleChart.setOption(bubbleOption);
+        
+        // 响应窗口大小变化
+        window.addEventListener('resize', function() {
+            radarChart.resize();
+            parallelChart.resize();
+            bubbleChart.resize();
+        });
+    });
+</script>
+{% endblock %} 

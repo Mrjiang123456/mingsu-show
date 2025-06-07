@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}区域民宿统计{% endblock %}
+
+{% block page_title %}类别比较型图表 - 区域民宿统计{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <h3><i class="fas fa-chart-bar"></i> 广州各区域民宿数量统计</h3>
+            <div id="areaChart" class="chart"></div>
+        </div>
+    </div>
+    <div class="col-md-12 mb-4">
+        <div class="chart-container">
+            <h3><i class="fas fa-table"></i> 数据表格</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>区域</th>
+                            <th>民宿数量</th>
+                            <th>占比</th>
+                        </tr>
+                    </thead>
+                    <tbody id="areaTableBody">
+                        <!-- 数据将通过JavaScript动态填充 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 当DOM加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+        // 使用图表工具类添加延迟加载
+        ChartUtils.addToLazyLoad('areaChart', initAreaChart);
+    });
+    
+    // 初始化区域图表
+    function initAreaChart() {
+        // 显示加载动画
+        ChartUtils.showLoading();
+        
+        // 使用缓存加载数据
+        ChartUtils.loadData('/api/area_count/')
+            .then(data => {
+                // 准备数据
+                const districts = data.map(item => item.district_name);
+                const counts = data.map(item => item.count);
+                
+                // 计算总数
+                const total = counts.reduce((sum, count) => sum + count, 0);
+                
+                // 初始化图表
+                const areaChart = ChartUtils.createResponsiveChart('areaChart');
+                
+                // 配置项
+                let option = {
+                    title: {
+                        text: '广州各区域民宿数量统计',
+                        left: 'center',
+                        textStyle: {
+                            fontSize: 18,
+                            fontWeight: 'bold'
+                        }
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow'
+                        },
+                        formatter: '{b}: {c} 家民宿 ({d}%)',
+                        textStyle: {
+                            fontSize: 14
+                        }
+                    },
+                    legend: {
+                        data: ['民宿数量'],
+                        bottom: 10
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: districts,
+                        axisLabel: {
+                            interval: 0,
+                            rotate: 30,
+                            textStyle: {
+                                fontSize: 12
+                            }
+                        },
+                        axisTick: {
+                            alignWithLabel: true
+                        }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '民宿数量',
+                        nameTextStyle: {
+                            fontSize: 12,
+                            padding: [0, 0, 0, 40]
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                type: 'dashed'
+                            }
+                        }
+                    },
+                    series: [
+                        {
+                            name: '民宿数量',
+                            type: 'bar',
+                            data: counts,
+                            itemStyle: {
+                                color: function(params) {
+                                    // 颜色数组
+                                    const colorList = [
+                                        '#5470c6', '#91cc75', '#fac858', '#ee6666',
+                                        '#73c0de', '#3ba272', '#fc8452', '#9a60b4',
+                                        '#ea7ccc', '#c23531', '#2f4554'
+                                    ];
+                                    return colorList[params.dataIndex % colorList.length];
+                                },
+                                borderRadius: [4, 4, 0, 0]
+                            },
+                            label: {
+                                show: true,
+                                position: 'top',
+                                formatter: '{c}'
+                            },
+                            emphasis: {
+                                itemStyle: {
+                                    shadowBlur: 10,
+                                    shadowOffsetX: 0,
+                                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                }
+                            },
+                            animationDelay: function(idx) {
+                                return idx * 100;
+                            }
+                        }
+                    ],
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '15%',
+                        containLabel: true
+                    },
+                    toolbox: {
+                        feature: {
+                            saveAsImage: {
+                                title: '保存为图片'
+                            },
+                            dataView: {
+                                title: '数据视图',
+                                lang: ['数据视图', '关闭', '刷新']
+                            },
+                            restore: {
+                                title: '重置'
+                            },
+                            dataZoom: {
+                                title: {
+                                    zoom: '区域缩放',
+                                    back: '区域缩放还原'
+                                }
+                            }
+                        },
+                        right: 20
+                    },
+                    dataZoom: [
+                        {
+                            type: 'slider',
+                            show: true,
+                            xAxisIndex: [0],
+                            start: 0,
+                            end: 100
+                        }
+                    ],
+                    animation: true
+                };
+                
+                // 优化图表配置
+                option = ChartUtils.optimizeChartOption(option);
+                
+                // 使用配置项显示图表
+                areaChart.setOption(option);
+                
+                // 填充表格数据
+                const tableBody = document.getElementById('areaTableBody');
+                tableBody.innerHTML = '';
+                
+                data.forEach(item => {
+                    const percentage = ((item.count / total) * 100).toFixed(2);
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.district_name}</td>
+                        <td>${item.count}</td>
+                        <td>${percentage}%</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                
+                // 隐藏加载动画
+                ChartUtils.hideLoading();
+            })
+            .catch(error => {
+                console.error('加载数据失败:', error);
+                // 隐藏加载动画
+                ChartUtils.hideLoading();
+                // 显示错误信息
+                document.getElementById('areaChart').innerHTML = '<div class="alert alert-danger">数据加载失败，请刷新页面重试</div>';
+            });
+    }
+</script>
+{% endblock %} 
